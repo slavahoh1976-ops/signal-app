@@ -7,7 +7,7 @@ const path = require('path');
 const fs = require('fs');
 
 const SITE = 'https://slavahoh1976-ops.github.io/signalflow/';
-const RELEASES = 'https://github.com/slavahoh1976-ops/signal-app/releases/latest';
+const RELEASES = 'https://slavahoh1976-ops.github.io/signalflow/download/';
 const BUNDLED_DIR = path.join(__dirname, 'web');
 const USER_DIR = () => path.join(app.getPath('userData'), 'web');
 

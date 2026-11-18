@@ -90,15 +90,15 @@ jobs:
           cp app/web/index.html pack/"Сигнал-$WEB"/Сигнал-веб-версия.html
           git archive --format=zip -o pack/"Сигнал-$WEB"/исходники-приложения.zip HEAD
           cp README.md pack/"Сигнал-$WEB"/ПРОЧТИ.md
-          (cd pack && zip -qr ../Signal-$WEB-all.zip "Сигнал-$WEB")
-          ls -la out Signal-*-all.zip
+          (cd pack && zip -qr ../Signal-All.zip "Сигнал-$WEB")
+          ls -la out Signal-All.zip
       - name: Публикация в Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v$WEB"
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$TAG" out/* Signal-$WEB-all.zip \
+          gh release create "$TAG" out/* Signal-All.zip \
             --title "Сигнал $WEB (приложение $SHELLV)" \
             --notes-file NOTES.md \
             --target "$GITHUB_SHA" --latest
