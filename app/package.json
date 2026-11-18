@@ -1,32 +1,64 @@
 {
   "name": "signal-desktop",
-  "productName": "Сигнал",
-  "version": "1.0.0",
+  "productName": "Signal",
+  "version": "1.0.1",
   "description": "Сигнал — схемы видеосигнала",
   "author": "Khokhryakov Viatcheslav",
   "main": "main.js",
   "private": true,
-  "scripts": { "dist": "electron-builder" },
+  "scripts": {
+    "dist": "electron-builder"
+  },
   "devDependencies": {
     "electron": "26.6.10",
     "electron-builder": "24.13.3"
   },
   "build": {
     "appId": "ru.slavahoh.signal",
-    "productName": "Сигнал",
+    "productName": "Signal",
     "copyright": "© 2026 Khokhryakov Viatcheslav",
-    "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "package.json", "web/**"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "web/**"
+    ],
     "asar": true,
     "mac": {
       "category": "public.app-category.graphics-design",
-      "target": ["dir"],
+      "target": [
+        "dir"
+      ],
       "identity": null,
       "minimumSystemVersion": "10.14.0",
-      "artifactName": "Signal-Mac-${arch}.${ext}"
+      "artifactName": "Signal-Mac-${arch}.${ext}",
+      "extendInfo": {
+        "CFBundleDisplayName": "Сигнал",
+        "CFBundleName": "Сигнал"
+      }
     },
-    "win": { "target": ["nsis", "portable"], "artifactName": "Signal-Windows-${arch}.${ext}" },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Сигнал", "artifactName": "Signal-Windows-Setup.${ext}" },
-    "portable": { "artifactName": "Signal-Windows-Portable.${ext}" }
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "Signal-Windows-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Сигнал",
+      "artifactName": "Signal-Windows-Setup.${ext}",
+      "uninstallDisplayName": "Сигнал"
+    },
+    "portable": {
+      "artifactName": "Signal-Windows-Portable.${ext}"
+    }
   }
 }

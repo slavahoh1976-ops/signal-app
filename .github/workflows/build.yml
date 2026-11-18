@@ -42,7 +42,8 @@ jobs:
           done
           ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac/*.app | head -1)" ../../Signal-Mac-Intel.zip
           ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac-arm64/*.app | head -1)" ../../Signal-Mac-AppleSilicon.zip
-          plutil -p "$(ls -d mac/*.app | head -1)/Contents/Info.plist" | grep -E "LSMinimumSystemVersion|CFBundleShortVersion"
+          if unzip -Z1 ../../Signal-Mac-Intel.zip | LC_ALL=C grep -q '[^ -~]'; then echo "В архиве есть не-латинские имена файлов"; exit 1; fi
+          plutil -p "$(ls -d mac/*.app | head -1)/Contents/Info.plist" | grep -E "LSMinimumSystemVersion|CFBundleShortVersion|CFBundleDisplayName|CFBundleExecutable"
       - uses: actions/upload-artifact@v4
         with:
           name: mac
@@ -85,12 +86,12 @@ jobs:
           set -e
           WEB=$(cat app/web/version.txt); SHELLV=$(node -p "require('./app/package.json').version")
           echo "WEB=$WEB" >> $GITHUB_ENV; echo "SHELLV=$SHELLV" >> $GITHUB_ENV
-          mkdir -p pack/"Сигнал-$WEB"
-          cp out/* pack/"Сигнал-$WEB"/
-          cp app/web/index.html pack/"Сигнал-$WEB"/Сигнал-веб-версия.html
-          git archive --format=zip -o pack/"Сигнал-$WEB"/исходники-приложения.zip HEAD
-          cp README.md pack/"Сигнал-$WEB"/ПРОЧТИ.md
-          (cd pack && zip -qr ../Signal-All.zip "Сигнал-$WEB")
+          mkdir -p pack/"Signal-$WEB"
+          cp out/* pack/"Signal-$WEB"/
+          cp app/web/index.html pack/"Signal-$WEB"/Signal-web.html
+          git archive --format=zip -o pack/"Signal-$WEB"/source.zip HEAD
+          cp README.md pack/"Signal-$WEB"/README.md
+          (cd pack && zip -qr ../Signal-All.zip "Signal-$WEB")
           ls -la out Signal-All.zip
       - name: Публикация в Releases
         env:

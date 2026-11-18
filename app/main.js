@@ -23,6 +23,10 @@ function webDir() {
 }
 const currentVer = () => readVer(webDir());
 
+// данные программы (библиотека, схемы) — всегда в папке «Сигнал», как в первой сборке
+app.setName('Сигнал');
+app.setPath('userData', path.join(app.getPath('appData'), 'Сигнал'));
+
 protocol.registerSchemesAsPrivileged([{ scheme: 'signal', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }]);
 
 let win = null;
