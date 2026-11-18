@@ -1,0 +1,112 @@
+name: Сборка для Windows и Mac
+
+# Собирает приложение «Сигнал» (Electron 26 — последняя версия, работающая на macOS 10.14 Mojave)
+# и выкладывает в Releases: Mac (Intel и Apple Silicon), Windows (установщик и переносная версия)
+# и общий архив со всеми версиями и исходниками.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/build.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Зависимости
+        working-directory: app
+        run: npm install --no-audit --no-fund
+      - name: Сборка (Intel и Apple Silicon)
+        working-directory: app
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --mac --x64 --arm64 --publish never
+      - name: Подпись (ad-hoc) и архивы
+        working-directory: app/dist
+        run: |
+          set -e
+          ls -la
+          for d in mac mac-arm64; do
+            APP=$(ls -d "$d"/*.app | head -1)
+            codesign --force --deep --sign - "$APP"
+            codesign --verify --deep --strict "$APP" && echo "подпись OK: $APP"
+          done
+          ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac/*.app | head -1)" ../../Signal-Mac-Intel.zip
+          ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac-arm64/*.app | head -1)" ../../Signal-Mac-AppleSilicon.zip
+          plutil -p "$(ls -d mac/*.app | head -1)/Contents/Info.plist" | grep -E "LSMinimumSystemVersion|CFBundleShortVersion"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: Signal-Mac-*.zip
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Зависимости
+        working-directory: app
+        run: npm install --no-audit --no-fund
+      - name: Сборка
+        working-directory: app
+        run: npx electron-builder --win --x64 --publish never
+      - name: Файлы
+        shell: bash
+        run: |
+          ls -la app/dist
+          cp app/dist/Signal-Windows-Setup.exe app/dist/Signal-Windows-Portable.exe .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: Signal-Windows-*.exe
+
+  release:
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - name: Общий архив
+        run: |
+          set -e
+          WEB=$(cat app/web/version.txt); SHELLV=$(node -p "require('./app/package.json').version")
+          echo "WEB=$WEB" >> $GITHUB_ENV; echo "SHELLV=$SHELLV" >> $GITHUB_ENV
+          mkdir -p pack/"Сигнал-$WEB"
+          cp out/* pack/"Сигнал-$WEB"/
+          cp app/web/index.html pack/"Сигнал-$WEB"/Сигнал-веб-версия.html
+          git archive --format=zip -o pack/"Сигнал-$WEB"/исходники-приложения.zip HEAD
+          cp README.md pack/"Сигнал-$WEB"/ПРОЧТИ.md
+          (cd pack && zip -qr ../Signal-$WEB-all.zip "Сигнал-$WEB")
+          ls -la out Signal-*-all.zip
+      - name: Публикация в Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$WEB"
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" out/* Signal-$WEB-all.zip \
+            --title "Сигнал $WEB (приложение $SHELLV)" \
+            --notes-file NOTES.md \
+            --target "$GITHUB_SHA" --latest
+
+  log:
+    needs: [mac, windows, release]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ссылка на лог
+        run: echo "Сборка не удалась — смотрите логи задач mac / windows / release"
