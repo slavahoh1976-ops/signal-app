@@ -116,7 +116,16 @@ else {
       cb({ path: file });
     });
     buildMenu(); createWindow();
-    setTimeout(() => checkUpdates(false), 4000);
+    // проверка запуска в сборке GitHub: загрузиться, сообщить версию и выйти
+    if (process.env.SIGNAL_SMOKE) {
+      console.log('SMOKE: окно создано, Electron ' + process.versions.electron + ', ' + process.platform + '/' + process.arch);
+      setTimeout(() => { console.log('SMOKE: FAIL — страница не загрузилась за 90 с'); app.exit(3); }, 90000);
+      win.webContents.on('did-finish-load', () => setTimeout(async () => {
+        try { const r = await win.webContents.executeJavaScript("APP_VERSION + ' | приборов в библиотеке: ' + allLib().length + ' | с фото: ' + customLib.filter(d => d.img).length"); console.log('SMOKE: OK ' + r); app.exit(0); }
+        catch (e) { console.log('SMOKE: FAIL ' + e); app.exit(2); }
+      }, 6000));
+    }
+    if (!process.env.SIGNAL_SMOKE) setTimeout(() => checkUpdates(false), 4000);
     setInterval(() => checkUpdates(false), 6 * 3600 * 1000);
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
   });

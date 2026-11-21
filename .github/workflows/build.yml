@@ -44,6 +44,12 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac-arm64/*.app | head -1)" ../../Signal-Mac-AppleSilicon.zip
           if unzip -Z1 ../../Signal-Mac-Intel.zip | LC_ALL=C grep -q '[^ -~]'; then echo "В архиве есть не-латинские имена файлов"; exit 1; fi
           plutil -p "$(ls -d mac/*.app | head -1)/Contents/Info.plist" | grep -E "LSMinimumSystemVersion|CFBundleShortVersion|CFBundleDisplayName|CFBundleExecutable"
+      - name: Проверка запуска (Apple Silicon и Intel через Rosetta)
+        working-directory: app/dist
+        run: |
+          set +e
+          SIGNAL_SMOKE=1 ./mac-arm64/Signal.app/Contents/MacOS/Signal 2>&1 | grep -E "SMOKE|Check failed|FATAL|Error" ; echo "arm64 код выхода: ${PIPESTATUS[0]}"
+          SIGNAL_SMOKE=1 arch -x86_64 ./mac/Signal.app/Contents/MacOS/Signal 2>&1 | grep -E "SMOKE|Check failed|FATAL|Error" ; echo "x64 код выхода: ${PIPESTATUS[0]}"
       - uses: actions/upload-artifact@v4
         with:
           name: mac
