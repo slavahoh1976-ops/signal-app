@@ -98,7 +98,9 @@ jobs:
           mkdir -p pack/"Signal-$WEB"
           cp out/* pack/"Signal-$WEB"/
           cp app/web/index.html pack/"Signal-$WEB"/Signal-web.html
-          git archive --format=zip -o pack/"Signal-$WEB"/source.zip HEAD
+          git archive --format=zip -o pack/"Signal-$WEB"/source-app.zip HEAD
+          git clone -q --depth 1 https://github.com/slavahoh1976-ops/signalflow sf-src
+          (cd sf-src && git archive --format=zip -o ../pack/"Signal-$WEB"/source-program.zip HEAD)
           cp README.md pack/"Signal-$WEB"/README.md
           (cd pack && zip -qr ../Signal-All.zip "Signal-$WEB")
           ls -la out Signal-All.zip
