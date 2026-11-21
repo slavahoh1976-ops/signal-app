@@ -48,8 +48,11 @@ jobs:
         working-directory: app/dist
         run: |
           set +e
-          SIGNAL_SMOKE=1 ./mac-arm64/Signal.app/Contents/MacOS/Signal 2>&1 | grep -E "SMOKE|Check failed|FATAL|Error" ; echo "arm64 код выхода: ${PIPESTATUS[0]}"
-          SIGNAL_SMOKE=1 arch -x86_64 ./mac/Signal.app/Contents/MacOS/Signal 2>&1 | grep -E "SMOKE|Check failed|FATAL|Error" ; echo "x64 код выхода: ${PIPESTATUS[0]}"
+          SIGNAL_SMOKE=1 ./mac-arm64/Signal.app/Contents/MacOS/Signal > arm.log 2>&1; A=$?
+          grep -E "SMOKE|Check failed|FATAL" arm.log; echo "arm64 код выхода: $A"
+          SIGNAL_SMOKE=1 arch -x86_64 ./mac/Signal.app/Contents/MacOS/Signal > x64.log 2>&1; X=$?
+          grep -E "SMOKE|Check failed|FATAL" x64.log; echo "x64 код выхода: $X"
+          [ $A -eq 0 ] && [ $X -eq 0 ] && grep -q "SMOKE: OK" arm.log && grep -q "SMOKE: OK" x64.log || { echo "Программа не запустилась — сборка остановлена"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: mac

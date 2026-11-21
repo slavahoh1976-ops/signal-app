@@ -1,7 +1,7 @@
 {
   "name": "signal-desktop",
   "productName": "Signal",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Сигнал — схемы видеосигнала",
   "author": "Khokhryakov Viatcheslav",
   "main": "main.js",
@@ -37,8 +37,7 @@
       "minimumSystemVersion": "10.14.0",
       "artifactName": "Signal-Mac-${arch}.${ext}",
       "extendInfo": {
-        "CFBundleDisplayName": "Сигнал",
-        "CFBundleName": "Сигнал"
+        "CFBundleDisplayName": "Сигнал"
       }
     },
     "win": {
