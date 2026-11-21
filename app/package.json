@@ -1,7 +1,7 @@
 {
   "name": "signal-desktop",
   "productName": "Signal",
-  "version": "1.0.2",
+  "version": "2.0.4",
   "description": "Сигнал — схемы видеосигнала",
   "author": "Khokhryakov Viatcheslav",
   "main": "main.js",
@@ -45,7 +45,7 @@
         "nsis",
         "portable"
       ],
-      "artifactName": "Signal-Windows-${arch}.${ext}"
+      "artifactName": "Signal-Windows-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -53,11 +53,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "Сигнал",
-      "artifactName": "Signal-Windows-Setup.${ext}",
-      "uninstallDisplayName": "Сигнал"
+      "artifactName": "Signal-Windows-Setup-${version}.${ext}",
+      "uninstallDisplayName": "Сигнал ${version}"
     },
     "portable": {
-      "artifactName": "Signal-Windows-Portable.${ext}"
+      "artifactName": "Signal-Windows-Portable-${version}.${ext}"
     }
   }
 }

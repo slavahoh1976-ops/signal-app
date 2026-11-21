@@ -2,11 +2,11 @@
 
 | Компьютер | Файл |
 |---|---|
-| **Mac с Intel** (macOS 10.14 Mojave и новее) | `Signal-Mac-Intel.zip` |
-| **Mac на M1/M2/M3** | `Signal-Mac-AppleSilicon.zip` |
-| **Windows 10/11** — установка | `Signal-Windows-Setup.exe` |
-| **Windows** — без установки (переносная) | `Signal-Windows-Portable.exe` |
-| Всё сразу + веб-версия + исходники | `Signal-All.zip` |
+| **Mac с Intel** (macOS 10.14.6 Mojave и новее) | `Signal-Mac-Intel-<версия>.zip` |
+| **Mac на M1/M2/M3** | `Signal-Mac-AppleSilicon-<версия>.zip` |
+| **Windows 10/11** — установка | `Signal-Windows-Setup-<версия>.exe` |
+| **Windows** — без установки (переносная) | `Signal-Windows-Portable-<версия>.exe` |
+| Всё сразу + веб-версия + исходники | `Signal-All-<версия>.zip` |
 
 **Mac:** распакуйте zip, перетащите «Signal» (в программе — «Сигнал») в «Программы». Первый запуск: правый клик по приложению → «Открыть» → «Открыть» (приложение не подписано в Apple — так нужно только один раз).
 

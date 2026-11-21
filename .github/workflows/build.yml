@@ -22,6 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Версия = версия программы
+        working-directory: app
+        shell: bash
+        run: node -e "const f='package.json',p=require('./'+f);p.version=require('fs').readFileSync('web/version.txt','utf8').trim();require('fs').writeFileSync(f,JSON.stringify(p,null,2));console.log('версия',p.version)"
       - name: Зависимости
         working-directory: app
         run: npm install --no-audit --no-fund
@@ -40,9 +44,9 @@ jobs:
             codesign --force --deep --sign - "$APP"
             codesign --verify --deep --strict "$APP" && echo "подпись OK: $APP"
           done
-          ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac/*.app | head -1)" ../../Signal-Mac-Intel.zip
-          ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac-arm64/*.app | head -1)" ../../Signal-Mac-AppleSilicon.zip
-          if unzip -Z1 ../../Signal-Mac-Intel.zip | LC_ALL=C grep -q '[^ -~]'; then echo "В архиве есть не-латинские имена файлов"; exit 1; fi
+          V=$(cat ../web/version.txt); ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac/*.app | head -1)" ../../Signal-Mac-Intel-$V.zip
+          ditto -c -k --sequesterRsrc --keepParent "$(ls -d mac-arm64/*.app | head -1)" ../../Signal-Mac-AppleSilicon-$V.zip
+          if unzip -Z1 ../../Signal-Mac-Intel-$V.zip | LC_ALL=C grep -q '[^ -~]'; then echo "В архиве есть не-латинские имена файлов"; exit 1; fi
           plutil -p "$(ls -d mac/*.app | head -1)/Contents/Info.plist" | grep -E "LSMinimumSystemVersion|CFBundleShortVersion|CFBundleDisplayName|CFBundleExecutable"
       - name: Проверка запуска (Apple Silicon и Intel через Rosetta)
         working-directory: app/dist
@@ -65,6 +69,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Версия = версия программы
+        working-directory: app
+        shell: bash
+        run: node -e "const f='package.json',p=require('./'+f);p.version=require('fs').readFileSync('web/version.txt','utf8').trim();require('fs').writeFileSync(f,JSON.stringify(p,null,2));console.log('версия',p.version)"
       - name: Зависимости
         working-directory: app
         run: npm install --no-audit --no-fund
@@ -75,7 +83,7 @@ jobs:
         shell: bash
         run: |
           ls -la app/dist
-          cp app/dist/Signal-Windows-Setup.exe app/dist/Signal-Windows-Portable.exe .
+          cp app/dist/Signal-Windows-Setup-*.exe app/dist/Signal-Windows-Portable-*.exe .
       - uses: actions/upload-artifact@v4
         with:
           name: windows
@@ -97,20 +105,20 @@ jobs:
           echo "WEB=$WEB" >> $GITHUB_ENV; echo "SHELLV=$SHELLV" >> $GITHUB_ENV
           mkdir -p pack/"Signal-$WEB"
           cp out/* pack/"Signal-$WEB"/
-          cp app/web/index.html pack/"Signal-$WEB"/Signal-web.html
-          git archive --format=zip -o pack/"Signal-$WEB"/source-app.zip HEAD
+          cp app/web/index.html pack/"Signal-$WEB"/Signal-web-$WEB.html
+          git archive --format=zip -o pack/"Signal-$WEB"/source-app-$WEB.zip HEAD
           git clone -q --depth 1 https://github.com/slavahoh1976-ops/signalflow sf-src
-          (cd sf-src && git archive --format=zip -o ../pack/"Signal-$WEB"/source-program.zip HEAD)
+          (cd sf-src && git archive --format=zip -o ../pack/"Signal-$WEB"/source-program-$WEB.zip HEAD)
           cp README.md pack/"Signal-$WEB"/README.md
-          (cd pack && zip -qr ../Signal-All.zip "Signal-$WEB")
-          ls -la out Signal-All.zip
+          (cd pack && zip -qr ../Signal-All-$WEB.zip "Signal-$WEB")
+          ls -la out Signal-All-$WEB.zip
       - name: Публикация в Releases
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v$WEB"
           gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
-          gh release create "$TAG" out/* Signal-All.zip \
+          gh release create "$TAG" out/* Signal-All-$WEB.zip \
             --title "Сигнал $WEB (приложение $SHELLV)" \
             --notes-file NOTES.md \
             --target "$GITHUB_SHA" --latest
