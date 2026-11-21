@@ -66,7 +66,9 @@ async function fetchPage(j) {
 
 // скачивание файла с прогрессом (0..1)
 async function download(url, file, from, span) {
+  ulog('get ' + url);
   const r = await net.fetch(url, { cache: 'no-store' });
+  ulog('status ' + r.status + ' len ' + r.headers.get('content-length'));
   if (!r.ok) throw new Error('файл не найден (' + r.status + ')');
   const total = +r.headers.get('content-length') || 0, out = fs.createWriteStream(file), rd = r.body.getReader();
   let got = 0, lastSent = 0;
@@ -81,7 +83,9 @@ async function download(url, file, from, span) {
 }
 
 // новая оболочка: Mac — заменить приложение и открыть; Windows — тихая установка поверх и запуск
+const ulog = m => { if (process.env.SIGNAL_UPDTEST) console.log('UPDTEST: ' + m); };
 async function installShell(v) {
+  ulog('start ' + v + ' ' + process.platform + '/' + process.arch);
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'signal-upd-'));
   if (process.platform === 'darwin') {
     const appPath = path.resolve(process.execPath, '../../..');
@@ -89,7 +93,9 @@ async function installShell(v) {
     fs.accessSync(path.dirname(appPath), fs.constants.W_OK);
     const name = process.arch === 'arm64' ? 'AppleSilicon' : 'Intel';
     const zip = path.join(tmp, 'new.zip');
+    ulog('app ' + appPath);
     await download(`${REL}v${v}/Signal-Mac-${name}-${v}.zip`, zip, 0.1, 0.85);
+    ulog('downloaded ' + fs.statSync(zip).size);
     const dir = path.join(tmp, 'x'); fs.mkdirSync(dir);
     execFileSync('/usr/bin/ditto', ['-x', '-k', zip, dir]);
     const nApp = fs.readdirSync(dir).find(f => f.endsWith('.app'));
@@ -105,6 +111,7 @@ mv "$OLD" "$OLD.old-$$" && /usr/bin/ditto "$NEW" "$OLD" && rm -rf "$OLD.old-$$" 
 /usr/bin/open "$OLD"
 rm -rf "${tmp}"
 `, { mode: 0o755 });
+    ulog('unpacked ' + nApp);
     spawn('/bin/bash', [sh, appPath, path.join(dir, nApp)], { detached: true, stdio: 'ignore' }).unref();
   } else if (process.platform === 'win32') {
     const portable = process.env.PORTABLE_EXECUTABLE_FILE;

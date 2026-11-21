@@ -17,6 +17,7 @@ permissions:
 jobs:
   mac:
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -64,7 +65,7 @@ jobs:
           PREV=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
           echo "предыдущая версия: $PREV"
           T="$RUNNER_TEMP/Apps"; mkdir -p "$T"; ditto ./mac-arm64/Signal.app "$T/Signal.app"
-          SIGNAL_UPDTEST=$PREV "$T/Signal.app/Contents/MacOS/Signal" 2>&1 | grep UPDTEST
+          SIGNAL_UPDTEST=$PREV perl -e 'alarm 300; exec @ARGV' "$T/Signal.app/Contents/MacOS/Signal" > upd.log 2>&1; echo "код выхода $?"; grep -E "UPDTEST|rror" upd.log | head -30
           for i in $(seq 1 60); do plutil -p "$T/Signal.app/Contents/Info.plist" 2>/dev/null | grep -q "\"CFBundleShortVersionString\" => \"$PREV\"" && break; sleep 1; done
           plutil -p "$T/Signal.app/Contents/Info.plist" | grep CFBundleShortVersionString
           sleep 8; pgrep -fl "$T/Signal.app" && echo "новая версия запустилась"; pkill -f "$T/Signal.app"
@@ -76,6 +77,7 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -104,16 +106,18 @@ jobs:
           "предыдущая версия: $prev"
           $setup = Get-ChildItem Signal-Windows-Setup-*.exe | Select-Object -First 1
           Start-Process $setup.FullName -ArgumentList '/S' -Wait
-          function inst { Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* -ErrorAction SilentlyContinue | Where-Object { $_.InstallLocation -and (Test-Path (Join-Path $_.InstallLocation 'Signal.exe')) } | Select-Object -First 1 }
+          Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -match 'Signal|Сигнал' } | Format-List DisplayName, DisplayVersion, InstallLocation
+          $exe = (Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Signal.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          function inst { [pscustomobject]@{ DisplayVersion = (Get-Item $exe).VersionInfo.ProductVersion; InstallLocation = (Split-Path $exe) } }
           $i = inst; "установлено: $($i.DisplayVersion) в $($i.InstallLocation)"
           $env:SIGNAL_UPDTEST = $prev
           $p = Start-Process (Join-Path $i.InstallLocation 'Signal.exe') -PassThru -RedirectStandardOutput upd.log
           $p.WaitForExit(240000) | Out-Null; Get-Content upd.log
           Remove-Item Env:SIGNAL_UPDTEST
-          for ($k = 0; $k -lt 90; $k++) { if ((inst).DisplayVersion -eq $prev) { break }; Start-Sleep 2 }
+          for ($k = 0; $k -lt 90; $k++) { if ((inst).DisplayVersion -like "$prev*") { break }; Start-Sleep 2 }
           $i = inst; "после обновления: $($i.DisplayVersion)"
           Start-Sleep 8; Get-Process Signal -ErrorAction SilentlyContinue | Format-Table Id, Path; Get-Process Signal -ErrorAction SilentlyContinue | Stop-Process -Force
-          if ($i.DisplayVersion -eq $prev) { "UPDATE WIN OK" } else { "UPDATE WIN FAIL"; exit 1 }
+          if ($i.DisplayVersion -like "$prev*") { "UPDATE WIN OK" } else { "UPDATE WIN FAIL"; exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: windows
