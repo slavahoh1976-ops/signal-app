@@ -6,7 +6,7 @@ name: Сборка для Windows и Mac
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'test-*']
     paths:
       - "app/**"
       - ".github/workflows/build.yml"
@@ -57,6 +57,18 @@ jobs:
           SIGNAL_SMOKE=1 arch -x86_64 ./mac/Signal.app/Contents/MacOS/Signal > x64.log 2>&1; X=$?
           grep -E "SMOKE|Check failed|FATAL" x64.log; echo "x64 код выхода: $X"
           [ $A -eq 0 ] && [ $X -eq 0 ] && grep -q "SMOKE: OK" arm.log && grep -q "SMOKE: OK" x64.log || { echo "Программа не запустилась — сборка остановлена"; exit 1; }
+      - name: Проверка самообновления (приложение ставит предыдущую версию поверх себя)
+        continue-on-error: true
+        working-directory: app/dist
+        run: |
+          PREV=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+          echo "предыдущая версия: $PREV"
+          T="$RUNNER_TEMP/Apps"; mkdir -p "$T"; ditto ./mac-arm64/Signal.app "$T/Signal.app"
+          SIGNAL_UPDTEST=$PREV "$T/Signal.app/Contents/MacOS/Signal" 2>&1 | grep UPDTEST
+          for i in $(seq 1 60); do plutil -p "$T/Signal.app/Contents/Info.plist" 2>/dev/null | grep -q "\"CFBundleShortVersionString\" => \"$PREV\"" && break; sleep 1; done
+          plutil -p "$T/Signal.app/Contents/Info.plist" | grep CFBundleShortVersionString
+          sleep 8; pgrep -fl "$T/Signal.app" && echo "новая версия запустилась"; pkill -f "$T/Signal.app"
+          plutil -p "$T/Signal.app/Contents/Info.plist" | grep -q "\"$PREV\"" && echo "UPDATE MAC OK" || { echo "UPDATE MAC FAIL"; exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: mac
@@ -84,12 +96,31 @@ jobs:
         run: |
           ls -la app/dist
           cp app/dist/Signal-Windows-Setup-*.exe app/dist/Signal-Windows-Portable-*.exe .
+      - name: Проверка самообновления (установить, затем приложение ставит предыдущую версию поверх себя)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $prev = (Invoke-RestMethod https://api.github.com/repos/${{ github.repository }}/releases/latest).tag_name.TrimStart('v')
+          "предыдущая версия: $prev"
+          $setup = Get-ChildItem Signal-Windows-Setup-*.exe | Select-Object -First 1
+          Start-Process $setup.FullName -ArgumentList '/S' -Wait
+          function inst { Get-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* -ErrorAction SilentlyContinue | Where-Object { $_.InstallLocation -and (Test-Path (Join-Path $_.InstallLocation 'Signal.exe')) } | Select-Object -First 1 }
+          $i = inst; "установлено: $($i.DisplayVersion) в $($i.InstallLocation)"
+          $env:SIGNAL_UPDTEST = $prev
+          $p = Start-Process (Join-Path $i.InstallLocation 'Signal.exe') -PassThru -RedirectStandardOutput upd.log
+          $p.WaitForExit(240000) | Out-Null; Get-Content upd.log
+          Remove-Item Env:SIGNAL_UPDTEST
+          for ($k = 0; $k -lt 90; $k++) { if ((inst).DisplayVersion -eq $prev) { break }; Start-Sleep 2 }
+          $i = inst; "после обновления: $($i.DisplayVersion)"
+          Start-Sleep 8; Get-Process Signal -ErrorAction SilentlyContinue | Format-Table Id, Path; Get-Process Signal -ErrorAction SilentlyContinue | Stop-Process -Force
+          if ($i.DisplayVersion -eq $prev) { "UPDATE WIN OK" } else { "UPDATE WIN FAIL"; exit 1 }
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: Signal-Windows-*.exe
 
   release:
+    if: github.ref == 'refs/heads/main'
     needs: [mac, windows]
     runs-on: ubuntu-latest
     steps:

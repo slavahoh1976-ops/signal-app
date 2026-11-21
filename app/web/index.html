@@ -223,6 +223,20 @@ button.danger:hover{border-color:var(--bad)}
 #libPreview .pt span{font-size:12px;color:var(--muted)}
 #libPreview .pt small{font-size:11px;color:var(--muted);line-height:1.35}
 #libList.grid .items > .small{grid-column:1/-1}
+
+/* кнопка версии ⟳ и оповещение об обновлении (как в «Срочном ТЗ») */
+.verbtn{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;font-weight:600;font-size:12.5px;white-space:nowrap;border:1px solid var(--line);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+.verbtn .vic{font-size:14px;line-height:1}
+.verbtn.has-upd{border-color:var(--acc);color:var(--acc);animation:verblink 1.1s ease-in-out infinite}
+@keyframes verblink{0%,100%{background:transparent}50%{background:rgba(37,99,235,.18);box-shadow:0 0 0 3px rgba(37,99,235,.18)}}
+@media (prefers-reduced-motion:reduce){.verbtn.has-upd{animation:none;background:rgba(37,99,235,.14)}}
+#updCard{position:fixed;right:16px;top:58px;z-index:320;width:330px;background:var(--panel,#fff);color:inherit;border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:10px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.22);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
+#updCard b{font-size:14px}
+#updCard .un{white-space:pre-wrap;max-height:120px;overflow:auto}
+#updCard .ub{display:flex;gap:8px;margin-top:4px}
+#updCard .ub button{padding:5px 12px;border-radius:6px;border:1px solid var(--line);background:transparent;color:inherit;cursor:pointer}
+#updCard .ub button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+#updBusy{position:fixed;right:16px;top:58px;z-index:330;background:#111827;color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 </style>
 </head>
 <body>
@@ -255,7 +269,7 @@ button.danger:hover{border-color:var(--bad)}
       </div></div>
       <div class="menu"><button>Помощь</button><div class="dd"><a data-cmd="help">Горячие клавиши и приёмы</a><a href="https://slavahoh1976-ops.github.io/signalflow/download/" target="_blank" rel="noopener">⇩ Скачать для Windows и Mac</a><a data-cmd="about">О программе и что нового</a></div></div>
     </div>
-    <div id="saveState" class="ok">Сохранено</div>
+    <div id="saveState" class="ok">Сохранено</div><button id="verBtn" class="verbtn" title="Версия программы — проверить обновления"></button>
     <div class="tools">
       <div class="seg"><button data-cmd="viewPorts" title="Блоки с портами">▤ С портами</button><button data-cmd="viewPic" title="Картинки, как в draw.io">🖼 Картинки</button></div>
       <span class="sep"></span>
@@ -963,8 +977,9 @@ function artKey(cat) {
 // ============================================================================
 //  SignalFlow — редактор схем видеосигнала
 // ============================================================================
-const APP_VERSION = '2.0.4', APP_DATE = '17.11.2026';
+const APP_VERSION = '2.0.5', APP_DATE = '21.11.2026';
 const CHANGELOG = [
+  ['2.0.5', '21.11.2026', ['Обновление как в «Срочном ТЗ»: вверху справа кнопка «⟳ версия»; программа сама проверяет обновления (при запуске, каждые 15 минут и при возврате в окно), кнопка мигает и всплывает оповещение «Обновить / Позже»', 'На Windows и Mac кнопка «Обновить» сама скачивает новую версию и перезапускает программу — идти на страницу загрузки не нужно']],
   ['2.0.4', '21.11.2026', ['Расстояние между линиями и между точками входов/выходов на приборе — одно: 18 px', 'Линии не идут вдоль корпуса прибора и не делают «отростков» туда-обратно; у каждого порта — хвостик наружу']],
   ['2.0.3', '21.11.2026', ['Исправлено: ручки участков стоят точно на линии, даже если линия отодвинута от соседней']],
   ['2.0.2', '21.11.2026', ['Линии никогда не ложатся друг на друга: расстояние между ними не меньше шага портов (в обоих режимах), включая линии с ручными изгибами и участки у портов', 'Изгибы следуют за прибором: при перемещении сдвигаются участки у его порта, петель не появляется', 'Почти прямые линии в режиме «Картинки» — прямые, без мелких ступенек']],
@@ -3873,26 +3888,95 @@ doc = newDoc(); P = doc.pages[0];
 })();
 // открытие файла проекта двойным кликом, когда приложение установлено (PWA file handler)
 try { if ('launchQueue' in window) launchQueue.setConsumer(async p => { if (!p.files || !p.files.length) return; const h = p.files[0]; const f = await h.getFile(); try { openDoc(JSON.parse(await f.text()), h); } catch (e) { toast('Не удалось открыть файл', 'e'); } }); } catch (e) { }
-// проверка обновлений: сайт сообщает последнюю версию, у пользователя — плашка «Обновить»
+// ---------- обновления (как в «Срочном ТЗ»): кнопка «⟳ версия» вверху справа мигает, если вышла новая,
+// и всплывает оповещение «Обновить / Позже». Проверка: при запуске, каждые 15 минут и при возврате в окно.
+// Сайт — перезагрузка с новой версией; Windows / Mac — программа сама скачивает новую версию и перезапускается.
+const SITE_URL = 'https://slavahoh1976-ops.github.io/signalflow/';
+const DESK = window.SIGNAL_DESKTOP || null;
 const verNum = v => String(v).split('.').map(x => +x || 0).reduce((s, x) => s * 1000 + x, 0);
-async function hardReload() {
+const UPD = { ver: '', shell: '', notes: '', last: 0, busy: false };
+const onSite = () => /^https?:$/.test(location.protocol) && location.href.startsWith(SITE_URL);
+async function hardReload(v) {
+  try { await idb.set('doc', snap()); } catch (e) { }
   try { if (window.caches) for (const k of await caches.keys()) await caches.delete(k); } catch (e) { }
   try { if (navigator.serviceWorker) for (const r of await navigator.serviceWorker.getRegistrations()) await r.update(); } catch (e) { }
-  location.reload();
+  const u = new URL(location.href); u.searchParams.set('v', v || String(Date.now())); location.replace(u.toString());
 }
-async function checkUpdate() {
-  if (!location.protocol.startsWith('http') || inClaude()) return;
-  try {
-    const r = await fetch('version.json?v=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return;
-    const j = await r.json();
-    if (verNum(j.version) > verNum(APP_VERSION) && !$('#updBar')) {
-      const b = document.createElement('button'); b.id = 'updBar'; b.className = 'pri';
-      b.textContent = `⟳ Доступна версия ${j.version} — обновить`; b.onclick = hardReload;
-      $('#saveState').after(b);
+function syncVerBtn() {
+  const b = $('#verBtn'); if (!b) return;
+  const has = !!(UPD.ver || UPD.shell);
+  b.innerHTML = `<span class="vic">⟳</span>${APP_VERSION}`;
+  b.classList.toggle('has-upd', has);
+  b.title = has ? `Доступна версия ${UPD.ver || UPD.shell} — нажмите, чтобы обновить${UPD.notes ? '\n' + UPD.notes : ''}`
+    : `Версия ${APP_VERSION}${DESK ? ' (приложение ' + DESK.shell + ')' : ''} — нажмите, чтобы проверить обновления`;
+}
+async function fetchVer() {
+  const url = (onSite() ? 'version.json' : SITE_URL + 'version.json') + '?t=' + Date.now();
+  const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+async function pollUpdate(force, manual) {
+  if (UPD.busy || (inClaude() && !manual)) return;
+  if (!force && Date.now() - UPD.last < 12e4) return;
+  UPD.last = Date.now();
+  let j; try { j = await fetchVer(); } catch (e) { if (manual) toast('Не удалось проверить обновления — нет связи с сайтом', 'w'); return; }
+  UPD.ver = verNum(j.version) > verNum(APP_VERSION) ? j.version : '';
+  const sh = j.desktop && j.desktop.shell;
+  UPD.shell = DESK && sh && verNum(sh) > verNum(DESK.shell) ? sh : '';
+  UPD.notes = (UPD.ver || UPD.shell) && j.notes ? String(j.notes) : '';
+  syncVerBtn();
+  if (!UPD.ver && !UPD.shell) { $('#updCard')?.remove(); if (manual) toast(`У вас последняя версия ${APP_VERSION}`); return; }
+  const key = (UPD.ver || UPD.shell) + '|' + new Date().toDateString();
+  // старое приложение (без обновления в один клик) само показывает своё окно — здесь только мигающая кнопка
+  if (DESK && typeof DESK.update !== 'function' && !manual) return;
+  if (manual || store.get('updLater', '') !== key) showUpdCard(key);
+}
+function showUpdCard(key) {
+  $('#updCard')?.remove();
+  const v = UPD.ver || UPD.shell;
+  const how = DESK ? 'Программа скачает новую версию и перезапустится. Схема и библиотека сохранятся.'
+    : onSite() ? 'Страница перезагрузится с новой версией. Схема и библиотека сохранятся.'
+    : 'Эта страница открыта файлом с компьютера и сама не обновится — откройте новую версию на сайте.';
+  const d = document.createElement('div'); d.id = 'updCard';
+  d.innerHTML = `<b>Доступна версия ${esc(v)}</b><div class="muted">У вас ${APP_VERSION}${DESK && UPD.shell && !UPD.ver ? ' (приложение ' + esc(DESK.shell) + ')' : ''}.</div>`
+    + (UPD.notes ? `<div class="un">${esc(UPD.notes)}</div>` : '') + `<div class="muted">${how}</div>`
+    + `<div class="ub"><button class="pri" data-u="go">${DESK || onSite() ? 'Обновить' : 'Открыть сайт'}</button><button data-u="later">Позже</button></div>`;
+  d.onclick = ev => {
+    const a = ev.target.dataset.u; if (!a) return;
+    d.remove();
+    if (a === 'later') { store.set('updLater', key); return; }
+    doUpdate();
+  };
+  document.body.appendChild(d);
+}
+async function doUpdate() {
+  if (UPD.busy) return;
+  if (DESK) {
+    if (typeof DESK.update !== 'function') return DESK.checkUpdates && DESK.checkUpdates(); // старое приложение — его окно обновления
+    UPD.busy = true;
+    try { await idb.set('doc', snap()); } catch (e) { }
+    const t = document.createElement('div'); t.id = 'updBusy'; t.textContent = 'Загрузка обновления…'; document.body.appendChild(t);
+    try {
+      const r = await DESK.update(UPD.ver, UPD.shell);
+      if (r && r.error) throw new Error(r.error);
+      t.textContent = r && r.restart ? 'Устанавливаю обновление и перезапускаю…' : 'Готово — открываю новую версию…';
+    } catch (e) {
+      t.remove(); UPD.busy = false;
+      toast('Обновление не удалось: ' + (e.message || e) + '. Можно скачать новую версию на странице загрузки.', 'e');
     }
-  } catch (e) { }
+    return;
+  }
+  if (onSite()) return hardReload(UPD.ver);
+  window.open(SITE_URL, '_blank');
 }
-setTimeout(checkUpdate, 1500); setInterval(checkUpdate, 10 * 60 * 1000);
+if (DESK && DESK.onProgress) DESK.onProgress(p => { const t = $('#updBusy'); if (t) t.textContent = 'Загрузка обновления… ' + Math.round(Math.max(0, Math.min(1, +p || 0)) * 100) + '%'; });
+window.sigCheckUpdate = manual => pollUpdate(true, manual); // меню приложения «Проверить обновления…»
+$('#verBtn').onclick = () => (UPD.ver || UPD.shell) ? doUpdate() : pollUpdate(true, true);
+syncVerBtn();
+setTimeout(() => pollUpdate(true), 1500);
+setInterval(() => pollUpdate(true), 15 * 60 * 1000);
+addEventListener('focus', () => pollUpdate(false));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pollUpdate(false); });
 // PWA (установка как приложение) — только при хостинге на своём сайте
 try { if ('serviceWorker' in navigator && location.protocol === 'https:' && window.top === window && document.querySelector('link[rel=manifest]')) navigator.serviceWorker.register('sw.js'); } catch (e) { }
 </script>
